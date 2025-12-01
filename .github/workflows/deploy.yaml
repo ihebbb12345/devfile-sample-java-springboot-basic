@@ -1,0 +1,46 @@
+name: Build & Deploy to OpenShift
+
+on:
+  push:
+    branches: ["main"]
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      # 1. Build Spring Boot JAR
+      - name: Set up JDK
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "21"
+
+      - name: Build Maven
+        run: mvn -B clean package -DskipTests
+
+      # 2. Build Docker image
+      - name: Build image
+        run: |
+          docker build -t ${{ secrets.OC_REGISTRY }}/${{ secrets.OC_NAMESPACE }}/${{ secrets.APP_NAME }}:latest .
+
+      # 3. Login to OpenShift internal registry
+      - name: Login to OpenShift registry
+        run: |
+          echo ${{ secrets.OC_PASS }} | docker login ${{ secrets.OC_REGISTRY }} \
+            -u ${{ secrets.OC_USER }} --password-stdin
+
+      # 4. Push image to OpenShift
+      - name: Push image
+        run: |
+          docker push ${{ secrets.OC_REGISTRY }}/${{ secrets.OC_NAMESPACE }}/${{ secrets.APP_NAME }}:latest
+
+      # 5. Trigger OpenShift rollout
+      - name: Trigger deployment rollout
+        run: |
+          oc login --username=${{ secrets.OC_USER }} --password=${{ secrets.OC_PASS }} https://api.crc.testing:6443 --insecure-skip-tls-verify
+          oc project ${{ secrets.OC_NAMESPACE }}
+          oc rollout restart deployment/${{ secrets.APP_NAME }}
