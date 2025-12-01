@@ -1,0 +1,43 @@
+name: Build & Deploy to OpenShift
+
+on:
+  push:
+    branches: [ "main" ]
+
+jobs:
+  build-deploy:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up JDK 17
+        uses: actions/setup-java@v4
+        with:
+          distribution: 'temurin'
+          java-version: 17
+
+      - name: Build Spring Boot jar
+        run: mvn -B package -Dmaven.test.skip=true
+
+      - name: Build Docker image
+        run: docker build -t spring-app .
+
+      - name: Login to OpenShift registry
+        run: echo "${{ secrets.OC_TOKEN }}" | docker login \
+            -u developer \
+            --password-stdin \
+            default-route-openshift-image-registry.apps-crc.testing
+
+      - name: Tag image
+        run: docker tag spring-app default-route-openshift-image-registry.apps-crc.testing/myproject/spring-app:latest
+
+      - name: Push image
+        run: docker push default-route-openshift-image-registry.apps-crc.testing/myproject/spring-app:latest
+
+      - name: Trigger OpenShift rollout
+        run: |
+          oc login --token=${{ secrets.OC_TOKEN }} --server=https://api.crc.testing:6443
+          oc project myproject
+          oc rollout restart deployment/spring-app || true
