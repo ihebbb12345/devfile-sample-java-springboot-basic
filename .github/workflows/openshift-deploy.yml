@@ -9,35 +9,43 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
+      # 1. Checkout repository
       - name: Checkout code
         uses: actions/checkout@v4
 
+      # 2. Set up Java
       - name: Set up JDK 17
         uses: actions/setup-java@v4
         with:
           distribution: 'temurin'
           java-version: 17
 
+      # 3. Build Spring Boot JAR
       - name: Build Spring Boot jar
         run: mvn -B package -Dmaven.test.skip=true
 
+      # 4. Build Docker image using docker/Dockerfile
       - name: Build Docker image
-        run: docker build -t spring-app .
+        run: docker build -t spring-app -f docker/Dockerfile .
 
+      # 5. Login to OpenShift internal registry
       - name: Login to OpenShift registry
         run: echo "${{ secrets.OC_TOKEN }}" | docker login \
-            -u developer \
+            -u kubeadmin \
             --password-stdin \
             default-route-openshift-image-registry.apps-crc.testing
 
+      # 6. Tag image for OpenShift registry
       - name: Tag image
         run: docker tag spring-app default-route-openshift-image-registry.apps-crc.testing/myproject/spring-app:latest
 
+      # 7. Push image to OpenShift registry
       - name: Push image
         run: docker push default-route-openshift-image-registry.apps-crc.testing/myproject/spring-app:latest
 
+      # 8. Rollout restart
       - name: Trigger OpenShift rollout
         run: |
-          oc login --token=${{ secrets.OC_TOKEN }} --server=https://api.crc.testing:6443
+          oc login --token=${{ secrets.OC_TOKEN }} --server=https://api.crc.testing:6443 --insecure-skip-tls-verify
           oc project myproject
           oc rollout restart deployment/spring-app || true
