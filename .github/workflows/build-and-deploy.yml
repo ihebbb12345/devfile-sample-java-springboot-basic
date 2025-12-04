@@ -12,6 +12,7 @@ jobs:
     - name: Checkout code
       uses: actions/checkout@v3
 
+    # ---- LOGIN TO GHCR ----
     - name: Log in to GHCR
       uses: docker/login-action@v3
       with:
@@ -19,11 +20,24 @@ jobs:
         username: ${{ secrets.GHCR_USERNAME }}
         password: ${{ secrets.GHCR_TOKEN }}
 
+    # ---- BUILD USING DOCKERFILE IN docker/ ----
     - name: Build Docker image
-      run: docker build -t ghcr.io/${{ secrets.GHCR_USERNAME }}/myapp:latest .
+      run: |
+        docker build \
+          -f docker/Dockerfile \
+          -t ghcr.io/${{ secrets.GHCR_USERNAME }}/myapp:latest \
+          .
 
     - name: Push Docker image
       run: docker push ghcr.io/${{ secrets.GHCR_USERNAME }}/myapp:latest
+
+    # ---- LOGIN TO OPENSHIFT ----
+    - name: Install oc CLI
+      run: |
+        curl -LO https://mirror.openshift.com/pub/openshift-v4/clients/ocp/latest/openshift-client-linux.tar.gz
+        tar -xvf openshift-client-linux.tar.gz
+        sudo mv oc /usr/local/bin/
+        sudo chmod +x /usr/local/bin/oc
 
     - name: Login to OpenShift
       run: |
@@ -31,6 +45,7 @@ jobs:
           --token=${{ secrets.OPENSHIFT_TOKEN }} \
           --insecure-skip-tls-verify=true
 
+    # ---- DEPLOY TO OPENSHIFT ----
     - name: Update OpenShift Deployment
       run: |
         oc project myproject
