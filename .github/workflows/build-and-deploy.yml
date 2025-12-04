@@ -1,39 +1,32 @@
-name: Build & Deploy to OpenShift (CRC)
+name: Build and Deploy
 
 on:
   push:
     branches: [ "main" ]
 
 jobs:
-  deploy:
-    runs-on: self-hosted   # ← important
+  build:
+    runs-on: self-hosted
+
     steps:
-      - name: Checkout code
-        uses: actions/checkout@v4
+    - name: Checkout code
+      uses: actions/checkout@v4
 
-      - name: Login to GHCR
-        uses: docker/login-action@v3
-        with:
-          registry: ghcr.io
-          username: ${{ github.actor }}
-          password: ${{ secrets.GITHUB_TOKEN }}
+    - name: Log in to GHCR
+      run: echo ${{ secrets.GITHUB_TOKEN }} | docker login ghcr.io -u ${{ github.actor }} --password-stdin
 
-      - name: Build Docker image
-        run: |
-          docker build -t ghcr.io/${{ github.repository }}/app:latest \
-            -f docker/DockerFile .
+    - name: Build Docker image
+      run: |
+        IMAGE_NAME=ghcr.io/${{ github.repository_owner }}/my-app:latest
+        docker build -t $IMAGE_NAME -f docker/Dockerfile .
 
-      - name: Push image to GHCR
-        run: docker push ghcr.io/${{ github.repository }}/app:latest
+    - name: Push image
+      run: |
+        IMAGE_NAME=ghcr.io/${{ github.repository_owner }}/my-app:latest
+        docker push $IMAGE_NAME
 
-      - name: Login to OpenShift
-        run: |
-          oc login ${{ secrets.OPENSHIFT_SERVER }} \
-            --token=${{ secrets.OPENSHIFT_TOKEN }}
-
-      - name: Deploy to OpenShift
-        run: |
-          oc project ${{ secrets.OPENSHIFT_NAMESPACE }}
-          oc set image deployment/myapp myapp=ghcr.io/${{ github.repository }}/app:latest --record
-          oc rollout restart deployment/myapp
-          
+    - name: Deploy on OpenShift
+      run: |
+        oc project myproject
+        oc set image deploy/my-app my-app=ghcr.io/${{ github.repository_owner }}/my-app:latest
+        oc rollout restart deploy/my-app
