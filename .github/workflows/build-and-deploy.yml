@@ -17,16 +17,16 @@ jobs:
 
     - name: Build Docker image
       run: |
-        IMAGE_NAME=ghcr.io/${{ github.repository_owner }}/my-app:latest
+        IMAGE_NAME=ghcr.io/${{ github.repository_owner }}/java-springboot-basic:latest
         docker build -t $IMAGE_NAME -f docker/Dockerfile .
 
     - name: Push image
       run: |
-        IMAGE_NAME=ghcr.io/${{ github.repository_owner }}/my-app:latest
+        IMAGE_NAME=ghcr.io/${{ github.repository_owner }}/java-springboot-basic:latest
         docker push $IMAGE_NAME
 
     - name: Deploy on OpenShift
       run: |
         oc project project-x
-        oc set image deploy/my-app my-app=ghcr.io/${{ github.repository_owner }}/my-app:latest
-        oc rollout restart deploy/my-app
+        oc set image deploy/my-app my-app=ghcr.io/${{ github.repository_owner }}/java-springboot-basic:latest
+        oc rollout restart deploy/java-springboot-basic
