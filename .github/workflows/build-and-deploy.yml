@@ -36,3 +36,4 @@ jobs:
           oc project ${{ secrets.OPENSHIFT_NAMESPACE }}
           oc set image deployment/myapp myapp=ghcr.io/${{ github.repository }}/app:latest --record
           oc rollout restart deployment/myapp
+          
